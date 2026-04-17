@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DancePlanet - WebGL Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #gameContainer { width: 100vw; height: 100vh; }
+        #canvas { width: 100%; height: 100%; }
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .hud {
+            position: absolute;
+            color: #0ff;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #0ff;
+        }
+        #player1-info { top: 20px; left: 20px; }
+        #player2-info { top: 20px; right: 20px; text-align: right; }
+        .hp-bar {
+            width: 250px;
+            height: 25px;
+            background: #1a1a1a;
+            border: 2px solid #0ff;
+            margin: 8px 0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            transition: width 0.1s;
+        }
+        #round-timer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 32px;
+            color: #ff00ff;
+            text-shadow: 0 0 20px #ff00ff;
+        }
+        #controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0ff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 11px;
+            pointer-events: auto;
+        }
+        .key {
+            background: #0ff;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="canvas"></canvas>
+        <div id="ui">
+            <div id="player1-info" class="hud">
+                <div>⚔️ PLAYER 1</div>
+                <div class="hp-bar"><div class="hp-fill" id="hp1-fill" style="width: 100%;"></div></div>
+            </div>
+            <div id="player2-info" class="hud">
+                <div>⚔️ PLAYER 2</div>
+                <div class="hp-bar"><div class="hp-fill" id="hp2-fill" style="width: 100%;"></div></div>
+            </div>
+            <div id="round-timer">
+                <div id="timer" style="font-size: 56px; color: #00ff00;">99</div>
+            </div>
+            <div id="controls-info">
+                <div style="color: #ff00ff; font-weight: bold; margin-bottom: 10px;">PLAYER 1</div>
+                <div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> Move</div>
+                <div><span class="key">SPACE</span> Jump | <span class="key">J</span> Punch | <span class="key">K</span> Kick</div>
+                <div style="border-top: 1px solid #0ff; margin-top: 10px; padding-top: 10px; margin-bottom: 10px;"></div>
+                <div style="color: #0ff; font-weight: bold; margin-bottom: 10px;">PLAYER 2</div>
+                <div><span class="key">↑</span><span class="key">←</span><span class="key">↓</span><span class="key">→</span> Move</div>
+                <div><span class="key">ENTER</span> Jump | <span class="key">L</span> Punch | <span class="key">;</span> Kick</div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const game = {
+            running: true,
+            time: 99,
+            player1: { x: -5, y: 0, z: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0 },
+            player2: { x: 5, y: 0, z: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0 },
+            keys: {}
+        };
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 15);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xff00ff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0x00ffff, 1.5);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // Arena
+        const floorGeom = new THREE.PlaneGeometry(50, 50);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.4 });
+        const floor = new THREE.Mesh(floorGeom, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const gridHelper = new THREE.GridHelper(50, 50, 0x00ffff, 0x333333);
+        scene.add(gridHelper);
+
+        // Create Players
+        function createFighter(color) {
+            const group = new THREE.Group();
+            const bodyGeom = new THREE.CapsuleGeometry(0.6, 1.8, 4, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color, metalness: 0.2, roughness: 0.8, emissive: color, emissiveIntensity: 0.3 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.position.y = 0.9;
+            body.castShadow = true;
+            group.add(body);
+
+            const headGeom = new THREE.SphereGeometry(0.5, 32, 32);
+            const head = new THREE.Mesh(headGeom, bodyMat);
+            head.position.y = 2.3;
+            head.castShadow = true;
+            group.add(head);
+
+            group.castShadow = true;
+            return group;
+        }
+
+        const p1Mesh = createFighter(0x00ffff);
+        const p2Mesh = createFighter(0xff00ff);
+        p1Mesh.position.set(-5, 0, 0);
+        p2Mesh.position.set(5, 0, 0);
+        scene.add(p1Mesh);
+        scene.add(p2Mesh);
+
+        // Input
+        window.addEventListener('keydown', (e) => {
+            game.keys[e.key.toLowerCase()] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            game.keys[e.key.toLowerCase()] = false;
+        });
+
+        // Update Loop
+        function updatePlayer(player, keys) {
+            const speed = 0.25, gravity = 0.012, friction = 0.88;
+            if (player === game.player1) {
+                if (keys['w']) player.vz -= speed;
+                if (keys['s']) player.vz += speed;
+                if (keys['a']) player.vx -= speed;
+                if (keys['d']) player.vx += speed;
+            } else {
+                if (keys['arrowup']) player.vz -= speed;
+                if (keys['arrowdown']) player.vz += speed;
+                if (keys['arrowleft']) player.vx -= speed;
+                if (keys['arrowright']) player.vx += speed;
+            }
+            player.vy -= gravity;
+            if (player.y <= 0) player.y = player.vy = 0;
+            else player.y += player.vy;
+            player.x += player.vx;
+            player.z += player.vz;
+            player.vx *= friction;
+            player.vz *= friction;
+            player.x = Math.max(-22, Math.min(22, player.x));
+            player.z = Math.max(-22, Math.min(22, player.z));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!game.running) return;
+            game.time -= 0.016;
+            if (game.time <= 0) game.running = false;
+            updatePlayer(game.player1, game.keys);
+            updatePlayer(game.player2, game.keys);
+            p1Mesh.position.set(game.player1.x, game.player1.y, game.player1.z);
+            p2Mesh.position.set(game.player2.x, game.player2.y, game.player2.z);
+            document.getElementById('hp1-fill').style.width = (game.player1.hp / 100 * 100) + '%';
+            document.getElementById('hp2-fill').style.width = (game.player2.hp / 100 * 100) + '%';
+            document.getElementById('timer').textContent = Math.ceil(game.time);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
