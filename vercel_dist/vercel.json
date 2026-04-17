@@ -2,16 +2,8 @@
   "version": 2,
   "routes": [
     {
-      "src": "/sounds/(.*)",
-      "dest": "/sounds/$1"
-    },
-    {
-      "src": "/video/(.*)",
-      "dest": "/video/$1"
-    },
-    {
-      "src": "/models/(.*)",
-      "dest": "/models/$1"
+      "src": "/public/(.*)",
+      "dest": "/public/$1"
     },
     {
       "src": "/pages/(.*)",
