@@ -1,1 +1,145 @@
-<html><body><h1>DancePlanet Arena</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DancePlanet – Arena</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DancePlanet – Neon arena with music-reactive intro and camera fly-in." />
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      color: #f0f0f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.1), rgba(0,0,0,0.9));
+      z-index: 10;
+      opacity: 1;
+      transition: opacity 1s ease;
+    }
+    #overlay h1 {
+      font-size: 2.5rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    #intro-video {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 5;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <audio id="arena-music" loop></audio>
+  <video id="intro-video"></video>
+  <div id="overlay"><h1>Welcome to the Arena</h1></div>
+  <canvas id="arena-canvas"></canvas>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+    const canvas = document.getElementById('arena-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050509);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 10, 40);
+
+    const light = new THREE.DirectionalLight(0xffffff, 2);
+    light.position.set(10, 20, 10);
+    scene.add(light);
+
+    const floorGeo = new THREE.CircleGeometry(20, 64);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111133, metalness: 0.6, roughness: 0.3 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const ringGeo = new THREE.TorusGeometry(18, 0.4, 16, 100);
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x003366, emissiveIntensity: 1.5 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 0.2;
+    scene.add(ring);
+
+    const clock = new THREE.Clock();
+
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function cameraFlyIn() {
+      const duration = 3;
+      let t = 0;
+      const startPos = new THREE.Vector3(0, 30, 80);
+      const endPos = new THREE.Vector3(0, 8, 25);
+      function step() {
+        const dt = clock.getDelta();
+        t += dt;
+        const alpha = Math.min(1, t / duration);
+        camera.position.lerpVectors(startPos, endPos, alpha);
+        camera.lookAt(0, 0, 0);
+        if (alpha < 1) requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      ring.rotation.y += dt * 0.8;
+      renderer.render(scene, camera);
+    }
+
+    const overlay = document.getElementById('overlay');
+    const introVideo = document.getElementById('intro-video');
+    const arenaMusic = document.getElementById('arena-music');
+
+    const savedIntro = localStorage.getItem('danceplanet_selected_intro');
+    if (savedIntro) {
+      introVideo.src = savedIntro;
+    } else {
+      introVideo.src = '/video/intro_grid.mp4';
+    }
+
+    const savedMusic = localStorage.getItem('danceplanet_selected_music');
+    if (savedMusic) {
+      arenaMusic.src = savedMusic;
+      arenaMusic.volume = 0.8;
+      arenaMusic.play().catch(() => {});
+    }
+
+    function startIntro() {
+      introVideo.style.opacity = 1;
+      introVideo.play().catch(() => {});
+      setTimeout(() => { overlay.style.opacity = 0; }, 1000);
+      setTimeout(() => { introVideo.style.opacity = 0; }, 3500);
+      cameraFlyIn();
+    }
+
+    startIntro();
+    animate();
+  </script>
+</body>
+</html>

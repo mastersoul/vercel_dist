@@ -1,1 +1,685 @@
-<html><body><h1>DancePlanet Fighter Select</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DancePlanet – Fighter Select</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+:root {
+  --bg-main: #050010;
+  --bg-panel: #120020;
+  --accent-pink: #ff00c8;
+  --accent-purple: #7a00ff;
+  --accent-cyan: #00eaff;
+  --text-main: #ffffff;
+  --text-muted: #aaaaee;
+  --border-pixel: 4px solid #ff00c8;
+  --scanline-color: rgba(255,255,255,0.03);
+  --grid-line: rgba(0,234,255,0.25);
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: radial-gradient(circle at top, #1a0533 0, #050010 60%, #000000 100%);
+  color: var(--text-main);
+  font-family: var(--font-main);
+  overflow: hidden;
+}
+
+.crt-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    var(--scanline-color) 3px
+  );
+  background-size: 100% 3px;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  z-index: 999;
+}
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 8px var(--accent-cyan);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  padding: 8px 16px 0 16px;
+  gap: 12px;
+}
+
+.viewer-container {
+  position: relative;
+  flex: 2;
+  border: var(--border-pixel);
+  background: radial-gradient(circle at top, #1a0533 0, #050010 60%, #000000 100%);
+  box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 0 30px rgba(255,0,200,0.3);
+  overflow: hidden;
+}
+
+.grid-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -40%;
+  height: 80%;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to top, var(--grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform-origin: center top;
+  transform: perspective(600px) rotateX(70deg);
+  opacity: 0.7;
+}
+
+#viewer-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.info-panel {
+  flex: 1;
+  border: var(--border-pixel);
+  background: linear-gradient(135deg, #120020 0, #050010 60%);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 0 30px rgba(0,234,255,0.3);
+}
+
+.info-title {
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  color: var(--accent-pink);
+  text-shadow: 0 0 8px var(--accent-pink);
+  margin-bottom: 4px;
+}
+
+.info-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 10px var(--accent-cyan);
+}
+
+.info-theme {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.info-stats {
+  margin-top: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-label {
+  width: 60px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.stat-bar {
+  flex: 1;
+  height: 8px;
+  background: #1a0533;
+  border: 1px solid #3a0a66;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-pink), var(--accent-cyan));
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.info-section-title {
+  margin-top: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-purple);
+}
+
+.info-text {
+  font-size: 12px;
+  color: var(--text-main);
+  margin-top: 4px;
+}
+
+.moves-list {
+  margin-top: 4px;
+  font-size: 12px;
+  list-style: none;
+}
+.moves-list li::before {
+  content: "▶ ";
+  color: var(--accent-cyan);
+}
+
+.controls-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 2px solid var(--accent-pink);
+  background: radial-gradient(circle at top, #2a003f 0, #050010 70%);
+  color: var(--text-main);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 8px rgba(255,0,200,0.5);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(255,0,200,0.8);
+  background: radial-gradient(circle at top, #3a005f 0, #050010 70%);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.toggle input {
+  accent-color: var(--accent-cyan);
+}
+
+.drawer {
+  position: relative;
+  border-top: var(--border-pixel);
+  background: linear-gradient(180deg, #120020 0, #050010 60%);
+  padding: 6px 16px 10px 16px;
+  box-shadow: 0 -10px 20px rgba(0,0,0,0.8);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.drawer-title {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.drawer-search {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.drawer-search input {
+  flex: 1;
+  background: #050010;
+  border: 1px solid #3a0a66;
+  color: var(--text-main);
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.drawer-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.drawer-body {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.theme-list {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.theme-pill {
+  min-width: 120px;
+  padding: 6px;
+  border-radius: 4px;
+  border: 2px solid rgba(255,255,255,0.1);
+  background: linear-gradient(135deg, #2a003f, #050010);
+  color: var(--text-main);
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,0,0,0.8);
+  flex-shrink: 0;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+}
+.theme-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(0,234,255,0.7);
+}
+.theme-pill.active {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0,234,255,0.9);
+}
+
+.fighter-list {
+  flex: 1;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #3a0a66;
+  padding: 4px;
+  background: radial-gradient(circle at top, #1a0533 0, #050010 70%);
+}
+
+.fighter-item {
+  font-size: 11px;
+  padding: 3px 4px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fighter-item span {
+  flex: 1;
+}
+.fighter-item:hover {
+  background: rgba(0,234,255,0.15);
+}
+.fighter-item.active {
+  background: rgba(0,234,255,0.25);
+  box-shadow: 0 0 8px rgba(0,234,255,0.8);
+}
+
+@media (max-width: 800px) {
+  .app-main {
+    flex-direction: column;
+  }
+  .viewer-container {
+    flex: none;
+    height: 45vh;
+  }
+  .info-panel {
+    flex: none;
+    height: 30vh;
+  }
+  .fighter-list {
+    max-height: 100px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="crt-overlay"></div>
+
+<div class="app-root">
+  <header class="app-header">
+    <div>DancePlanet // Fighter Select</div>
+    <div style="font-size:11px;color:#aaa;">Arcade Retro · Light CRT · Adaptive</div>
+  </header>
+
+  <main class="app-main">
+    <section class="viewer-container">
+      <canvas id="viewer-canvas"></canvas>
+      <div class="grid-floor"></div>
+    </section>
+
+    <aside class="info-panel">
+      <div class="info-title">Current Fighter</div>
+      <div class="info-name" id="info-name">Loading...</div>
+      <div class="info-theme" id="info-theme">Theme: —</div>
+
+      <div class="info-stats">
+        <div class="stat-row">
+          <div class="stat-label">Power</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="stat-power"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-label">Speed</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="stat-speed"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-label">Style</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="stat-style"></div></div>
+        </div>
+      </div>
+
+      <div class="info-section-title">Signature Moves</div>
+      <ul class="moves-list" id="info-moves"></ul>
+
+      <div class="info-section-title">Lore</div>
+      <div class="info-text" id="info-lore">—</div>
+
+      <div class="info-section-title">Controls</div>
+      <div class="controls-row">
+        <button class="btn" id="btn-random-theme">Random Theme</button>
+        <button class="btn" id="btn-random-fighter">Random Fighter</button>
+      </div>
+      <label class="toggle" style="margin-top:4px;">
+        <input type="checkbox" id="toggle-shuffle" />
+        <span>Shuffle Theme Every Match</span>
+      </label>
+    </aside>
+  </main>
+
+  <section class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">Themes & Fighters</div>
+      <div class="drawer-search">
+        <input type="text" id="search-input" placeholder="Search themes..." />
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="theme-list" id="theme-list"></div>
+      <div class="fighter-list" id="fighter-list"></div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+const canvas = document.getElementById("viewer-canvas");
+const infoName = document.getElementById("info-name");
+const infoTheme = document.getElementById("info-theme");
+const infoMoves = document.getElementById("info-moves");
+const infoLore = document.getElementById("info-lore");
+const statPower = document.getElementById("stat-power");
+const statSpeed = document.getElementById("stat-speed");
+const statStyle = document.getElementById("stat-style");
+const themeListEl = document.getElementById("theme-list");
+const fighterListEl = document.getElementById("fighter-list");
+const searchInput = document.getElementById("search-input");
+const btnRandomTheme = document.getElementById("btn-random-theme");
+const btnRandomFighter = document.getElementById("btn-random-fighter");
+const toggleShuffle = document.getElementById("toggle-shuffle");
+
+let allFighters = [];
+let fightersByTheme = {};
+let currentThemeId = null;
+let currentFighterId = null;
+let isDesktop = window.innerWidth > 800;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050010);
+
+const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+camera.position.set(0, 1.2, 4);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x080820, 0.8);
+scene.add(hemiLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(2, 4, 3);
+scene.add(dirLight);
+
+const loader = new GLTFLoader();
+let currentModel = null;
+let currentGlowMaterials = [];
+const clock = new THREE.Clock();
+
+function onResize() {
+  isDesktop = window.innerWidth > 800;
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", onResize);
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  if (currentModel) {
+    const s = 1 + Math.sin(t * 2.0) * 0.05;
+    currentModel.scale.set(s, s, s);
+    currentModel.rotation.y = Math.sin(t * 0.5) * 0.3;
+    currentModel.rotation.z = Math.sin(t * 0.7) * 0.1;
+  }
+  const glowIntensity = 0.5 + Math.sin(t * 3.0) * 0.5;
+  currentGlowMaterials.forEach(m => {
+    if (m.emissiveIntensity !== undefined) {
+      m.emissiveIntensity = glowIntensity;
+    }
+  });
+  renderer.render(scene, camera);
+}
+animate();
+
+async function loadLore() {
+  const res = await fetch("/models/fighters/ai_fighter_lore.json");
+  const data = await res.json();
+  allFighters = data;
+  fightersByTheme = {};
+  for (const f of data) {
+    if (!fightersByTheme[f.theme]) fightersByTheme[f.theme] = [];
+    fightersByTheme[f.theme].append(f);
+  }
+  buildThemeList();
+  autoSelectInitial();
+}
+
+function buildThemeList(filter = "") {
+  themeListEl.innerHTML = "";
+  const themes = Object.keys(fightersByTheme).sort();
+  for (const themeId of themes) {
+    const fighters = fightersByTheme[themeId];
+    if (!fighters.length) continue;
+    const themeName = fighters[0].themeName;
+    if (filter && !themeName.toLowerCase().includes(filter.toLowerCase())) continue;
+
+    const pill = document.createElement("div");
+    pill.className = "theme-pill";
+    pill.dataset.themeId = themeId;
+    pill.textContent = themeName;
+    pill.addEventListener("click", () => selectTheme(themeId));
+    themeListEl.appendChild(pill);
+  }
+  updateThemeActive();
+}
+
+function buildFighterList(themeId) {
+  fighterListEl.innerHTML = "";
+  const fighters = fightersByTheme[themeId] || [];
+  const subset = fighters.slice(0, 80);
+  for (const f of subset) {
+    const item = document.createElement("div");
+    item.className = "fighter-item";
+    item.dataset.fighterId = f.fighterId;
+    const spanName = document.createElement("span");
+    spanName.textContent = f.name;
+    const spanStat = document.createElement("span");
+    spanStat.style.fontSize = "10px";
+    spanStat.style.color = "#aaa";
+    spanStat.textContent = `P${f.stats.power} S${f.stats.speed} St${f.stats.style}`;
+    item.appendChild(spanName);
+    item.appendChild(spanStat);
+    item.addEventListener("click", () => selectFighter(f.fighterId));
+    fighterListEl.appendChild(item);
+  }
+  updateFighterActive();
+}
+
+function selectTheme(themeId) {
+  currentThemeId = themeId;
+  updateThemeActive();
+  buildFighterList(themeId);
+  const fighters = fightersByTheme[themeId] || [];
+  if (fighters.length) {
+    selectFighter(fighters[0].fighterId);
+  }
+}
+
+function selectFighter(fighterId) {
+  currentFighterId = fighterId;
+  updateFighterActive();
+  const fighter = allFighters.find(f => f.fighterId === fighterId);
+  if (!fighter) return;
+  updateInfoPanel(fighter);
+  loadFighterModel(fighter);
+}
+
+function updateThemeActive() {
+  const pills = themeListEl.querySelectorAll(".theme-pill");
+  pills.forEach(p => {
+    p.classList.toggle("active", p.dataset.themeId === currentThemeId);
+  });
+}
+
+function updateFighterActive() {
+  const items = fighterListEl.querySelectorAll(".fighter-item");
+  items.forEach(it => {
+    it.classList.toggle("active", it.dataset.fighterId === currentFighterId);
+  });
+}
+
+function updateInfoPanel(f) {
+  infoName.textContent = f.name;
+  infoTheme.textContent = "Theme: " + f.themeName;
+  infoLore.textContent = f.lore;
+  infoMoves.innerHTML = "";
+  (f.signatureMoves || []).forEach(m => {
+    const li = document.createElement("li");
+    li.textContent = m;
+    infoMoves.appendChild(li);
+  });
+
+  const p = (f.stats.power / 10) * 100;
+  const s = (f.stats.speed / 10) * 100;
+  const st = (f.stats.style / 10) * 100;
+  statPower.style.width = p + "%";
+  statSpeed.style.width = s + "%";
+  statStyle.style.width = st + "%";
+
+  const [r,g,b] = f.colorAccent;
+  const accent = `rgb(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)})`;
+  document.documentElement.style.setProperty("--accent-pink", accent);
+}
+
+function loadFighterModel(f) {
+  const url = `/models/fighters/${f.fighterId}.glb`;
+  if (currentModel) {
+    scene.remove(currentModel);
+    currentModel.traverse(obj => {
+      if (obj.isMesh) {
+        obj.geometry.dispose();
+        if (obj.material && obj.material.dispose) obj.material.dispose();
+      }
+    });
+    currentModel = null;
+    currentGlowMaterials = [];
+  }
+  loader.load(url, gltf => {
+    const root = gltf.scene;
+    root.position.set(0, 0, 0);
+    scene.add(root);
+    currentModel = root;
+    currentGlowMaterials = [];
+    root.traverse(obj => {
+      if (obj.isMesh && obj.material) {
+        if (obj.material.name === "glow") {
+          currentGlowMaterials.push(obj.material);
+          obj.material.emissiveIntensity = 1.0;
+        }
+      }
+    });
+  });
+}
+
+function randomTheme() {
+  const themeIds = Object.keys(fightersByTheme);
+  if (!themeIds.length) return;
+  const idx = Math.floor(Math.random() * themeIds.length);
+  selectTheme(themeIds[idx]);
+}
+
+function randomFighter() {
+  if (!currentThemeId) return;
+  const fighters = fightersByTheme[currentThemeId] || [];
+  if (!fighters.length) return;
+  const idx = Math.floor(Math.random() * fighters.length);
+  selectFighter(fighters[idx].fighterId);
+}
+
+function autoSelectInitial() {
+  const themeIds = Object.keys(fightersByTheme);
+  if (!themeIds.length) return;
+  if (toggleShuffle.checked) {
+    randomTheme();
+  } else {
+    selectTheme(themeIds[0]);
+  }
+}
+
+searchInput.addEventListener("input", () => {
+  buildThemeList(searchInput.value);
+});
+
+btnRandomTheme.addEventListener("click", randomTheme);
+btnRandomFighter.addEventListener("click", randomFighter);
+
+toggleShuffle.addEventListener("change", () => {
+  if (toggleShuffle.checked) {
+    randomTheme();
+  }
+});
+
+onResize();
+loadLore();
+</script>
+</body>
+</html>
