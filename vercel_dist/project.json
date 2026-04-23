@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
+  "env": {
+    "NEXT_PUBLIC_API_BASE": "https://solid-system-8mii.onrender.com"
+  }
+}
